@@ -19,5 +19,33 @@
     "payee": "rMhQnsBZjFZp5cPdT6YKW5c6BugYLTh53f",
     "amount": "1500",
     "description": "Bulk order, 3000 units"
+  },
+  {
+    "invoiceId": "INV-004",
+    "supplierName": "Guangzhou Display Co",
+    "payee": "rBkSoseSKEriYzYdSDv8ttS8RhNWSpE7Hd",
+    "amount": "200",
+    "description": "Replacement LCD panels, 40 units"
+  },
+  {
+    "invoiceId": "INV-005",
+    "supplierName": "Guangzhou Display Co",
+    "payee": "rBkSoseSKEriYzYdSDv8ttS8RhNWSpE7Hd",
+    "amount": "150",
+    "description": "Backlight units, 20 pcs"
+  },
+  {
+    "invoiceId": "INV-006",
+    "supplierName": "Shenzhen Components Ltd",
+    "payee": "rMhQnsBZjFZp5cPdT6YKW5c6BugYLTh53f",
+    "amount": "90",
+    "description": "Ribbon cables"
+  },
+  {
+    "invoiceId": "INV-007",
+    "supplierName": "Shenzhen Components Ltd",
+    "payee": "rMhQnsBZjFZp5cPdT6YKW5c6BugYLTh53f",
+    "amount": "75",
+    "description": "Spare connectors"
   }
 ]

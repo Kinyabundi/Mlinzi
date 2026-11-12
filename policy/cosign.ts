@@ -1,5 +1,5 @@
 import { decode, multisign, Wallet, type Client, type Payment } from "xrpl";
-import { reportMemo, CURRENCY, type Accounts } from "../shared/xrpl.js";
+import { reportMemo, withLedger, CURRENCY, type Accounts } from "../shared/xrpl.js";
 import type { Proposal } from "../shared/types.js";
 
 const TF_PARTIAL_PAYMENT = 0x00020000;
@@ -50,7 +50,8 @@ export async function cosignAndSubmit(client: Client, agentBlob: string, policyW
   const tx = decode(agentBlob) as unknown as Payment & { Signers?: unknown };
   delete tx.Signers;
   const policyBlob = policyWallet.sign(tx, true).tx_blob;
-  const res = await client.submitAndWait(multisign([agentBlob, policyBlob]));
+  const signed = multisign([agentBlob, policyBlob]);
+  const res = await withLedger(client, () => client.submitAndWait(signed));
   const meta = res.result.meta;
   const code = typeof meta === "object" && meta ? meta.TransactionResult : "unknown";
   if (code !== "tesSUCCESS") throw new Error(`ledger rejected payment: ${code}`);

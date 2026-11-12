@@ -25,10 +25,44 @@ export type Role =
 
 export type Accounts = Record<Role, { address: string; seed: string }>;
 
-export async function connect(): Promise<Client> {
-  const client = new Client(XRPL_WS);
-  await client.connect();
-  return client;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export async function connect(attempts = 5): Promise<Client> {
+  const client = new Client(XRPL_WS, { connectionTimeout: 20_000 });
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await client.connect();
+      return client;
+    } catch (err) {
+      if (i === attempts - 1) throw err;
+      await sleep(2000 * (i + 1));
+    }
+  }
+  throw new Error("unreachable");
+}
+
+function isTransient(err: unknown): boolean {
+  const e = err as { name?: string; message?: string };
+  return e?.name === "NotConnectedError" || e?.name === "DisconnectedError"
+    || /not connected|websocket|connect\(\) timed out/i.test(e?.message ?? "");
+}
+
+/**
+ * Runs a ledger call, reconnecting and retrying if the socket drops. Safe for
+ * submits too: a signed blob carries a fixed Sequence, so resubmitting it is
+ * idempotent — the ledger either returns the same result or rejects the dupe.
+ */
+export async function withLedger<T>(client: Client, fn: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      if (!client.isConnected()) await client.connect();
+      return await fn();
+    } catch (err) {
+      if (!isTransient(err) || i === attempts - 1) throw err;
+      await sleep(1500 * (i + 1));
+    }
+  }
+  throw new Error("unreachable");
 }
 
 export function saveAccounts(accounts: Accounts): void {

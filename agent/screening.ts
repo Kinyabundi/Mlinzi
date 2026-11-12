@@ -1,6 +1,6 @@
 import type { Client, Payment } from "xrpl";
 import { convertStringToHex } from "xrpl";
-import { wallet, CURRENCY, type Accounts } from "../shared/xrpl.js";
+import { wallet, withLedger, CURRENCY, type Accounts } from "../shared/xrpl.js";
 
 const GATEWAY_URL = process.env.GATEWAY_URL ?? "http://127.0.0.1:4402";
 
@@ -61,7 +61,8 @@ export async function screenPayee(client: Client, accounts: Accounts, address: s
     } }],
   };
 
-  const res = await client.submitAndWait(tx, { autofill: true, wallet: wallet(accounts, "intel") });
+  const res = await withLedger(client, () =>
+    client.submitAndWait(tx, { autofill: true, wallet: wallet(accounts, "intel") }));
   const meta = res.result.meta;
   const code = typeof meta === "object" && meta ? meta.TransactionResult : "unknown";
   if (code !== "tesSUCCESS") return { paid: false, error: `screening payment failed: ${code}` };

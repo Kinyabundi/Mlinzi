@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Client, Payment } from "xrpl";
-import { wallet, reportMemo, CURRENCY, type Accounts } from "../shared/xrpl.js";
+import { wallet, reportMemo, withLedger, CURRENCY, type Accounts } from "../shared/xrpl.js";
 import type { DecisionReport, Invoice, Proposal, ProposalResponse } from "../shared/types.js";
 import { payeeFacts } from "./ledger.js";
 import { screenPayee } from "./screening.js";
@@ -74,7 +74,7 @@ export async function runTool(name: string, input: any, ctx: ToolContext): Promi
     // The agent may only ask about this invoice's payee.
     if (input.address !== invoice.payee) return { error: "can only check the payee named on this invoice" };
     const allow = await policy<{ allowlisted: boolean }>(`/agent/payees/${invoice.payee}`);
-    const facts = await payeeFacts(client, invoice.payee, accounts.issuer.address);
+    const facts = await withLedger(client, () => payeeFacts(client, invoice.payee, accounts.issuer.address));
     ctx.evidence.checkPayee = { ...allow, ...facts };
     return ctx.evidence.checkPayee;
   }
@@ -108,7 +108,7 @@ export async function runTool(name: string, input: any, ctx: ToolContext): Promi
       Amount: { currency: CURRENCY, issuer: accounts.issuer.address, value: invoice.amount },
       Memos: [reportMemo(report).memo],
     };
-    const prepared = await client.autofill(tx, 2);
+    const prepared = await withLedger(client, () => client.autofill(tx, 2));
     const txBlob = wallet(accounts, "agent").sign(prepared, true).tx_blob;
 
     const proposal: Proposal = { invoiceId: invoice.invoiceId, payee: invoice.payee, amount: invoice.amount, report, txBlob };

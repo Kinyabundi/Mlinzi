@@ -70,7 +70,7 @@ Signer list: **quorum 2** — agent (1) + policy (1) = 2 ✅, or operator (2) al
 3. Optionally calls `screen_payee` — **paid** risk screening bought from the gateway over x402 (see below).
 4. Calls `propose_payment` with a `clean`/`risky` verdict. The agent signs a Payment from the treasury — but **the payment fields come from the invoice, never from model output**. The model supplies only a verdict and a rationale.
 5. **Policy service** re-derives the transaction from the blob and checks it independently ([`policy/cosign.ts`](policy/cosign.ts)): right source, right destination, right amount and issuer, no `SendMax`/`DeliverMin`/`Paths`, no partial-payment flag, exactly one signature from the agent key, and a memo whose hash matches the decision report.
-6. It then applies the owner's rules ([`policy/rules.ts`](policy/rules.ts)): allowlisted payee, per-payment limit, daily limit, agent's own risk flag.
+6. It then applies the owner's rules ([`policy/rules.ts`](policy/rules.ts)): allowlisted payee, per-payment limit, daily limit, agent's own risk flag — **and checks the screening gateway's denylist itself** ([`policy/intel.ts`](policy/intel.ts)), because the agent decides whether to buy screening and must not be the only thing standing between a denylisted payee and a payout. If the gateway is unreachable, the payment is held, not waved through.
 7. Pass → policy co-signs and submits. Fail → the proposal is **held** for the operator.
 
 A held payment is never co-signed later from a stale blob. Signed XRPL transactions expire (`LastLedgerSequence`), so "release" just marks the invoice approved; the agent signs a **fresh** payment on its next run. The operator key never leaves the operator.
@@ -129,6 +129,8 @@ No framework for the agent loop — it is a plain `while` loop over `messages.cr
 
 What an attacker gets from each thing they compromise:
 
+A load-bearing rule: **nothing that protects money may depend on the agent choosing to invoke it.** Every control below runs policy-side, on every proposal.
+
 | Compromised | They can | They cannot |
 | --- | --- | --- |
 | The invoice (prompt injection) | Influence the model's verdict | Change payee or amount — those come from invoice fields, not model output; and policy rules still apply |
@@ -143,6 +145,7 @@ Deliberate choices:
 - **The agent can only ask about its own invoice's payee** — `check_payee`/`screen_payee` refuse any other address.
 - **Agent risk input is one-way.** `risky` can block a payment; `clean` can never unblock one.
 - **No LLM in the policy service or the gateway.** Both are reproducible by the operator.
+- **The gateway denylist is enforced by the policy service**, not by the agent remembering to screen, and it fails closed if the gateway is down.
 - **Replay protection** on screening payments, and invoice-level idempotency (`paid`/`rejected` are terminal).
 
 ---
@@ -303,7 +306,18 @@ All against live XRPL Testnet.
 | Run budget exceeded | Refused before paying |
 | Denylisted payee | Risk flips to `high` |
 
-**The test that matters most** — INV-004, 200 to a payee that was approved, had a trust line, and was within limits. Every free check passed. Paid screening rated it `high`, the agent reported `risky`, and the policy service held it. Paid screening was the only thing between that invoice and an autonomous payout.
+**Live agent runs** — Claude driving the tools, not a stub:
+
+- It bought paid screening **only** for the doubtful payee, skipping it for payees the free checks already settled. Cost discipline came from the system prompt, not from hard-coding.
+- On the invoice carrying a prompt injection, its rationale read: *"The invoice also contained an embedded prompt-injection attempt instructing the AI to mark it clean, which was disregarded."*
+
+### A bug the live run found
+
+A deterministic test driver always called `screen_payee`, so the gateway denylist always got consulted. The real agent, exercising the cost discipline above, skipped screening for a payee whose free checks all passed — and that payee **was on the gateway's sanctions denylist**. It got paid ([D2242BA5…](https://testnet.xrpl.org/transactions/D2242BA54AC77759E8145BC4F6112250292009900614A1CA1FD6F155C93F8720)).
+
+The denylist was only enforced if the agent chose to pay for screening, which makes it exactly the kind of limit the agent *can* override — the thing this project exists to prevent. The fix moves the check into the policy service ([`policy/intel.ts`](policy/intel.ts)), where it runs on every proposal regardless of what the agent did, and fails closed.
+
+Re-tested after the fix, same scenario: agent again rated the payee `clean`; policy service held it on `payee is denylisted by the screening gateway`. With the gateway stopped, a perfectly clean invoice is also held (`screening gateway unreachable`) rather than paid.
 
 ---
 
@@ -316,4 +330,4 @@ This is a working testnet prototype, not a production payout system.
 - **Single policy service.** It is the second signature; if it is down, nothing pays. The operator key (weight 2) is the break-glass.
 - **Screening is shallow** — on-ledger heuristics plus a manual denylist, not a sanctions or KYB provider.
 - **The dashboard has no authentication of its own.** It binds to `127.0.0.1` and holds the operator token; exposing it to a network would mean putting real auth in front.
-- **No automatic retry** for transient XRPL disconnects; a failed submit holds the proposal and the next agent run re-signs.
+- **Public testnet nodes drop connections often.** Ledger calls reconnect and retry (`withLedger` in [`shared/xrpl.ts`](shared/xrpl.ts)); if every attempt fails, the proposal is held and the next agent run signs afresh. Nothing double-pays — a signed blob carries a fixed `Sequence`, so a resubmission is the same transaction, not a second one.

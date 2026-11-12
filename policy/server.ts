@@ -12,6 +12,7 @@ import { connect, loadAccounts, wallet, txLink } from "../shared/xrpl.js";
 import type { Proposal, ProposalResponse, ProposalStatus } from "../shared/types.js";
 import * as store from "./db.js";
 import { evaluate } from "./rules.js";
+import { checkDenylist } from "./intel.js";
 import { verifyAgentBlob, cosignAndSubmit } from "./cosign.js";
 
 const AGENT_TOKEN = process.env.AGENT_TOKEN;
@@ -66,7 +67,12 @@ app.post<{ Body: Proposal }>("/proposals", agentOnly, async (req, reply) => {
   if (latest?.status === "released") return pay(latest.id, p.txBlob);
 
   const { approve, reasons } = evaluate(p.payee, amount, p.report.screening);
-  if (!approve) {
+
+  // Checked here, not left to the agent: it chooses whether to buy screening,
+  // so the denylist has to be enforced whether or not it did.
+  const deny = await checkDenylist(p.payee);
+  if (deny.denied && deny.reason) reasons.push(deny.reason);
+  if (!approve || deny.denied) {
     if (latest?.status !== "held") {
       store.insertProposal({ invoiceId: p.invoiceId, payee: p.payee, amount, status: "held", reasons, report: p.report });
     }
