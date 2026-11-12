@@ -6,100 +6,191 @@
 <title>Mlinzi — Operator</title>
 <style>
   :root {
-    --bg: #faf9f7; --panel: #ffffff; --line: #e5e1db; --ink: #1c1a17; --muted: #6b655c;
-    --accent: #1f6f5c; --warn: #9a6b1f; --bad: #9a3324; --radius: 10px;
+    --bg: #f6f4ef; --panel: #ffffff; --line: #e8e3da; --ink: #22201c; --muted: #6f685d;
+    --accent: #1f7a63; --accent-soft: #e3f2ed; --warn: #9a6b1f; --warn-soft: #fbf1dc;
+    --bad: #a63a2a; --bad-soft: #f8e4e0; --radius: 16px;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#171614; --panel:#201e1b; --line:#332f2a; --ink:#f0ece6; --muted:#9c958a;
-            --accent:#5fbfa4; --warn:#d6a24a; --bad:#e0705c; }
+    :root { --bg:#181715; --panel:#22201d; --line:#34302a; --ink:#f3efe8; --muted:#a39c90;
+            --accent:#6fcfb2; --accent-soft:#1f322c; --warn:#e0ad55; --warn-soft:#352c19;
+            --bad:#e8806c; --bad-soft:#3a221d; }
   }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif,-apple-system,Segoe UI,Roboto,sans-serif; }
-  header { padding:20px 24px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
-  h1 { font-size:17px; margin:0; letter-spacing:-.01em; }
-  .sub { color:var(--muted); font-size:13px; }
-  main { max-width:1040px; margin:0 auto; padding:24px; display:grid; gap:20px; }
-  section { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 14px; }
-  table { width:100%; border-collapse:collapse; font-size:14px; }
-  th { text-align:left; font-weight:600; color:var(--muted); font-size:12px; text-transform:uppercase;
-       letter-spacing:.04em; padding:0 10px 8px 0; }
-  td { padding:9px 10px 9px 0; border-top:1px solid var(--line); vertical-align:top; }
-  .scroll { overflow-x:auto; }
-  code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
-  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600;
-          text-transform:uppercase; letter-spacing:.04em; border:1px solid currentColor; }
-  .paid{color:var(--accent)} .held{color:var(--warn)} .rejected{color:var(--bad)} .released{color:var(--muted)}
-  button { font:inherit; font-size:13px; padding:5px 12px; border-radius:7px; border:1px solid var(--line);
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 ui-rounded,ui-sans-serif,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:22px 28px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  h1 { font-size:22px; margin:0; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:14px; }
+  main { max-width:960px; margin:0 auto; padding:4px 24px 48px; display:grid; gap:22px; }
+  .intro { color:var(--muted); font-size:15px; margin:0; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px;
+            box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .card-head { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  h2 { font-size:18px; margin:0; letter-spacing:-.01em; }
+  .hint { color:var(--muted); font-size:14px; margin:0 0 16px; }
+  table { width:100%; border-collapse:collapse; font-size:14.5px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:13px; padding:0 12px 8px 0; }
+  td { padding:12px 12px 12px 0; border-top:1px solid var(--line); vertical-align:top; }
+  @media (max-width:700px) { .scroll { overflow-x:auto; } }
+  code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
+  .pill { display:inline-block; padding:3px 11px; border-radius:999px; font-size:12.5px; font-weight:600; }
+  .paid{color:var(--accent);background:var(--accent-soft)} .held{color:var(--warn);background:var(--warn-soft)}
+  .rejected{color:var(--bad);background:var(--bad-soft)} .released{color:var(--muted);background:var(--line)}
+  button { font:inherit; font-size:14px; padding:8px 16px; border-radius:999px; border:1px solid var(--line);
            background:transparent; color:var(--ink); cursor:pointer; }
   button:hover { border-color:var(--accent); color:var(--accent); }
   button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
   button.primary:hover { opacity:.9; color:#fff; }
-  input { font:inherit; font-size:13px; padding:6px 9px; border-radius:7px;
+  input { font:inherit; font-size:14px; padding:9px 13px; border-radius:10px;
           border:1px solid var(--line); background:var(--bg); color:var(--ink); }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  .stat { display:flex; gap:28px; flex-wrap:wrap; }
+  input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .stat { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .stat > div { background:var(--bg); border-radius:12px; padding:12px 14px; }
   .stat div span { display:block; }
-  .stat .k { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  .stat .v { font-size:20px; font-weight:600; margin-top:2px; }
+  .stat .k { color:var(--muted); font-size:13px; }
+  .stat .v { font-size:24px; font-weight:700; margin-top:2px; }
   a { color:var(--accent); }
-  .reasons { color:var(--muted); font-size:12.5px; margin-top:3px; }
-  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink);
-           color:var(--bg); padding:9px 16px; border-radius:8px; font-size:13px; opacity:0;
+  .reasons { color:var(--muted); font-size:13.5px; margin-top:3px; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .addrow { margin-top:16px; padding-top:16px; border-top:1px dashed var(--line); }
+  #toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink);
+           color:var(--bg); padding:11px 20px; border-radius:999px; font-size:14px; opacity:0;
            transition:opacity .2s; pointer-events:none; }
   #toast.show { opacity:1; }
+
+  /* agent activity drawer */
+  #drawer { position:fixed; top:0; right:0; bottom:0; width:min(400px,100vw); background:var(--panel);
+            border-left:1px solid var(--line); transform:translateX(100%); transition:transform .2s;
+            display:flex; flex-direction:column; z-index:20; }
+  body.drawer-open #drawer { transform:none; }
+  @media (min-width:1300px) { body { transition:padding-right .2s; } body.drawer-open { padding-right:400px; } }
+  .drawer-head { display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid var(--line); }
+  .drawer-head h2 { flex:1; }
+  .drawer-intro { padding:12px 18px 0; margin:0; color:var(--muted); font-size:13.5px; }
+  #feed { flex:1; overflow-y:auto; padding:8px 18px 24px; }
+  .grp { margin:18px 0 6px; font-weight:700; font-size:14px; }
+  .ev { display:flex; gap:10px; padding:7px 0; font-size:14px; }
+  .ev { border-left:3px solid var(--line); padding-left:12px; margin-left:2px; }
+  .ev .lbl { font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .ev.verdict { border-color:var(--warn); } .ev.outcome { border-color:var(--accent); } .ev.error { border-color:var(--bad); }
+  .ev.thought, .ev.thinking { border-color:var(--muted); }
+  .ev .t { color:var(--muted); font-size:12px; }
+  .ev.thought .m, .ev.thinking .m { font-style:italic; color:var(--muted); }
+  .ev.verdict .m, .ev.outcome .m { font-weight:600; }
+  .ev.error .m { color:var(--bad); }
+  .ev details summary { cursor:pointer; color:var(--muted); font-size:12.5px; }
+  .ev pre { white-space:pre-wrap; word-break:break-word; font-size:12px; background:var(--bg); padding:8px; border-radius:8px; margin:4px 0 0; }
+  .run-div { text-align:center; color:var(--muted); font-size:12.5px; margin:16px 0 4px; }
+  .live { width:8px; height:8px; border-radius:50%; background:var(--accent); display:inline-block; }
+
+  /* over-limit note + modal */
+  .note { margin-top:14px; display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px;
+          background:var(--warn-soft); color:var(--warn); border:none; font-weight:600; font-size:13.5px; }
+  .note:hover { color:var(--warn); opacity:.85; }
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center;
+           z-index:30; padding:16px; }
+  #modal.show { display:flex; }
+  .modal-box { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px;
+               width:min(440px,100%); box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  .modal-box h3 { margin:0 0 8px; font-size:17px; }
+  .modal-box .body { color:var(--muted); font-size:14.5px; }
+  .modal-box ul { margin:10px 0 0; padding-left:18px; color:var(--ink); }
+  .modal-box .row { justify-content:flex-end; margin-top:18px; }
+
+  /* hover tooltips: any element with data-tip */
+  [data-tip] { position:relative; }
+  [data-tip]::after { content:attr(data-tip); position:absolute; left:50%; bottom:calc(100% + 8px);
+    transform:translateX(-50%); width:max-content; max-width:260px; background:var(--ink); color:var(--bg);
+    padding:8px 12px; border-radius:10px; font-size:13px; font-weight:400; line-height:1.4; text-align:left;
+    display:none; pointer-events:none; z-index:10; white-space:normal; }
+  [data-tip]:hover::after, [data-tip]:focus-visible::after { display:block; }
+  .info { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px;
+          border-radius:50%; background:var(--line); color:var(--muted); font-size:12px; font-weight:700;
+          cursor:help; flex:none; }
+  .info::after { left:0; transform:none; }
 </style>
 </head>
 <body>
 <header>
   <h1>Mlinzi</h1>
-  <span class="sub">Operator console · XRPL Testnet</span>
-  <span class="sub" style="margin-left:auto"><button onclick="loadAll()">Refresh</button></span>
+  <span class="sub">Your payment control room · XRPL Testnet</span>
+  <span style="margin-left:auto" class="row"><button onclick="toggleDrawer()" id="drawerBtn">Agent activity</button> <button onclick="loadAll()">Refresh</button></span>
 </header>
 
 <main>
+  <p class="intro">The AI agent reads your invoices and asks to pay them. You set the rules here, and you have the final say on anything it isn't allowed to pay by itself.</p>
+
   <section>
-    <h2>Limits</h2>
+    <div class="card-head"><h2>Spending limits</h2><span class="info" data-tip="The most the agent can pay on its own. Anything above these gets held for you to decide.">?</span></div>
+    <p class="hint">How much the agent may pay without asking you.</p>
     <div class="stat" id="policyStats"></div>
-    <div class="row" style="margin-top:14px">
-      <input id="perPayment" type="number" step="1" placeholder="per payment" style="width:130px">
-      <input id="daily" type="number" step="1" placeholder="per day" style="width:130px">
+    <div id="overNote"></div>
+    <div class="row addrow">
+      <input id="perPayment" type="number" step="1" placeholder="max per payment" style="width:160px">
+      <input id="daily" type="number" step="1" placeholder="max per day" style="width:160px">
       <button class="primary" onclick="savePolicy()">Save limits</button>
     </div>
   </section>
 
   <section>
-    <h2>Approved payees</h2>
+    <div class="card-head"><h2>Trusted suppliers</h2><span class="info" data-tip="Your allowlist. The agent can only pay these suppliers by itself. Anyone else is held for your approval.">?</span></div>
+    <p class="hint">Suppliers you know and trust.</p>
     <div class="scroll"><table id="payees"></table></div>
-    <div class="row" style="margin-top:14px">
-      <input id="payeeAddr" placeholder="r..." style="width:300px" class="mono">
-      <input id="payeeName" placeholder="supplier name" style="width:220px">
-      <button class="primary" onclick="addPayee()">Approve</button>
+    <div class="row addrow">
+      <input id="payeeAddr" placeholder="Supplier address (starts with r)" style="width:300px" class="mono">
+      <input id="payeeName" placeholder="Supplier name" style="width:220px">
+      <button class="primary" onclick="addPayee()">Add supplier</button>
     </div>
   </section>
 
   <section>
-    <h2>Proposals</h2>
+    <div class="card-head"><h2>Payment requests</h2><span class="info" data-tip="Every payment the agent has asked to make. Ones it couldn't approve itself wait here for you.">?</span></div>
+    <p class="hint">Payments the agent wants to make. Look for “Needs your OK”.</p>
     <div class="scroll"><table id="proposals"></table></div>
   </section>
 
   <section>
-    <h2>Screening gateway</h2>
+    <div class="card-head"><h2>Scam check</h2><span class="info" data-tip="A separate screening service that flags known bad addresses. The agent pays a tiny fee to use it.">?</span></div>
+    <p class="hint">Known bad addresses that are always blocked.</p>
     <div class="stat" id="revenue"></div>
     <div class="scroll" style="margin-top:14px"><table id="denylist"></table></div>
-    <div class="row" style="margin-top:14px">
-      <input id="denyAddr" placeholder="r..." style="width:300px" class="mono">
-      <input id="denyReason" placeholder="reason" style="width:220px">
-      <button onclick="addDeny()">Add to denylist</button>
+    <div class="row addrow">
+      <input id="denyAddr" placeholder="Address to block (starts with r)" style="width:300px" class="mono">
+      <input id="denyReason" placeholder="Why block it?" style="width:220px">
+      <button onclick="addDeny()">Block address</button>
     </div>
   </section>
 </main>
+
+<aside id="drawer" aria-label="Agent activity">
+  <div class="drawer-head">
+    <h2>Agent activity</h2>
+    <button onclick="clearLogs()">Clear</button>
+    <button onclick="toggleDrawer()" aria-label="Close">✕</button>
+  </div>
+  <p class="drawer-intro">A live play-by-play of what the agent is doing and why. Run <code>npm run agent</code> and watch it here.</p>
+  <div id="feed"></div>
+</aside>
+
+<div id="modal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3 id="modalTitle"></h3>
+    <div class="body" id="modalBody"></div>
+    <div class="row"><button id="modalCancel">Cancel</button><button class="primary" id="modalOk">OK</button></div>
+  </div>
+</div>
 
 <div id="toast"></div>
 
 <script>
 const EXPLORER = "https://testnet.xrpl.org";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const STATUS = {
+  held: { label: "Needs your OK", tip: "The agent isn't allowed to pay this alone. Approve or reject it." },
+  paid: { label: "Paid", tip: "The payment was sent." },
+  rejected: { label: "Rejected", tip: "You cancelled it. It will not be paid." },
+  released: { label: "Approved", tip: "You approved it. It will be sent on the agent's next run." },
+};
 const short = (a) => a ? a.slice(0, 10) + "…" + a.slice(-4) : "";
 
 function toast(msg) {
@@ -121,11 +212,13 @@ async function api(action, params, body) {
 
 async function loadPolicy() {
   const p = await api("policy");
+  POLICY = p;
+  renderOverNote();
   document.getElementById("policyStats").innerHTML = `
-    <div><span class="k">Per payment</span><span class="v">${p.per_payment_limit}</span></div>
-    <div><span class="k">Per day</span><span class="v">${p.daily_limit}</span></div>
+    <div><span class="k">Max per payment</span><span class="v">${p.per_payment_limit}</span></div>
+    <div><span class="k">Max per day</span><span class="v">${p.daily_limit}</span></div>
     <div><span class="k">Spent today</span><span class="v">${p.spentToday}</span></div>
-    <div><span class="k">Remaining today</span><span class="v">${(p.daily_limit - p.spentToday).toFixed(2)}</span></div>`;
+    <div><span class="k">Left today</span><span class="v">${Math.max(0, p.daily_limit - p.spentToday).toFixed(2)}</span></div>`;
   document.getElementById("perPayment").value = p.per_payment_limit;
   document.getElementById("daily").value = p.daily_limit;
 }
@@ -143,12 +236,12 @@ async function savePolicy() {
 async function loadPayees() {
   const rows = await api("payees");
   document.getElementById("payees").innerHTML =
-    `<tr><th>Address</th><th>Name</th><th>Approved</th><th></th></tr>` +
+    `<tr><th>Address</th><th>Name</th><th>Added</th><th></th></tr>` +
     (rows.length ? rows.map((r) => `
       <tr><td class="mono" title="${esc(r.address)}">${esc(short(r.address))}</td>
       <td>${esc(r.name)}</td><td class="sub">${esc(r.approved_at)}</td>
       <td><button onclick="removePayee('${esc(r.address)}')">Remove</button></td></tr>`).join("")
-      : `<tr><td colspan="4" class="reasons">No approved payees yet.</td></tr>`);
+      : `<tr><td colspan="4" class="reasons">No trusted suppliers yet. Add one below.</td></tr>`);
 }
 
 async function addPayee() {
@@ -169,27 +262,33 @@ async function removePayee(address) {
 
 async function loadProposals() {
   const rows = await api("proposals");
+  PROPOSALS = Object.fromEntries(rows.map((r) => [r.id, r]));
+  renderOverNote();
   document.getElementById("proposals").innerHTML =
-    `<tr><th>Invoice</th><th>Payee</th><th>Amount</th><th>Status</th><th>Detail</th><th></th></tr>` +
+    `<tr><th>Invoice</th><th>Pay to</th><th>Amount</th><th>Status</th><th>Details</th><th></th></tr>` +
     (rows.length ? rows.map((r) => {
       const actions = r.status === "held"
-        ? `<button class="primary" onclick="act('release',${r.id})">Release</button>
-           <button onclick="act('reject',${r.id})">Reject</button>` : "";
+        ? `<div class="actions"><button class="primary" onclick="act('release',${r.id})">Approve</button>
+           <button onclick="act('reject',${r.id})">Reject</button></div>` : "";
       const detail = r.link
-        ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">view on ledger</a>`
+        ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">view receipt on ledger</a>`
         : `<span class="reasons">${esc((r.reasons || []).join("; ")) || "—"}</span>`;
       const risk = r.report?.evidence?.screening?.result?.risk;
       return `<tr>
         <td>${esc(r.invoice_id)}</td>
         <td class="mono" title="${esc(r.payee)}">${esc(short(r.payee))}</td>
         <td>${esc(r.amount)}</td>
-        <td><span class="pill ${esc(r.status)}">${esc(r.status)}</span>${
-          risk ? `<div class="reasons">screened: ${esc(risk)}</div>` : ""}</td>
+        <td><span class="pill ${esc(r.status)}">${esc(STATUS[r.status]?.label || r.status)}</span>${
+          risk ? `<div class="reasons">agent check: ${esc(risk)}</div>` : ""}</td>
         <td>${detail}</td><td>${actions}</td></tr>`;
-    }).join("") : `<tr><td colspan="6" class="reasons">No proposals yet.</td></tr>`);
+    }).join("") : `<tr><td colspan="6" class="reasons">No payment requests yet. Run the agent to get some.</td></tr>`);
 }
 
 async function act(action, id) {
+  if (action === "release") {
+    const warn = overLimitWarning(PROPOSALS[id]);
+    if (warn && !(await openModal({ title: "Over your limits", body: warn, ok: "Approve anyway", cancel: "Cancel" }))) return;
+  }
   try { await api(action, { id: String(id) }); toast(`Proposal ${id} ${action}d`); loadProposals(); loadPolicy(); }
   catch (e) { toast(e.message); }
 }
@@ -198,19 +297,132 @@ async function loadGateway() {
   try {
     const r = await api("revenue");
     document.getElementById("revenue").innerHTML = `
-      <div><span class="k">Screenings sold</span><span class="v">${Math.round(r.screeningsSold)}</span></div>
-      <div><span class="k">Revenue</span><span class="v">${r.revenue.toFixed(2)} USD</span></div>
-      <div><span class="k">Gateway</span><span class="v mono" style="font-size:13px">${esc(short(r.gateway))}</span></div>`;
+      <div><span class="k">Checks run</span><span class="v">${Math.round(r.screeningsSold)}</span></div>
+      <div><span class="k">Earned</span><span class="v">${r.revenue.toFixed(2)} USD</span></div>
+      <div><span class="k">Gateway wallet</span><span class="v mono" style="font-size:13px">${esc(short(r.gateway))}</span></div>`;
     const rows = await api("denylist");
     document.getElementById("denylist").innerHTML =
-      `<tr><th>Denylisted address</th><th>Reason</th><th>Added</th></tr>` +
+      `<tr><th>Blocked address</th><th>Why</th><th>Added</th><th></th></tr>` +
       (rows.length ? rows.map((d) => `<tr><td class="mono" title="${esc(d.address)}">${esc(short(d.address))}</td>
-        <td>${esc(d.reason)}</td><td class="sub">${esc(d.added_at)}</td></tr>`).join("")
-        : `<tr><td colspan="3" class="reasons">Denylist is empty.</td></tr>`);
+        <td>${esc(d.reason)}</td><td class="sub">${esc(d.added_at)}</td>
+        <td><button onclick="removeDeny('${esc(d.address)}')">Unblock</button></td></tr>`).join("")
+        : `<tr><td colspan="4" class="reasons">Nothing blocked yet.</td></tr>`);
   } catch (e) {
     document.getElementById("revenue").innerHTML =
       `<div class="reasons">Gateway unreachable — start it with <code>npm run gateway</code>.</div>`;
   }
+}
+
+// ---- Over-limit warnings ----
+let POLICY = null, PROPOSALS = {};
+const LIMIT_RE = /exceeds per-payment limit|daily limit/;
+const today = () => new Date().toISOString().slice(0, 10); // server dates are UTC
+
+function overLimitWarning(r) {
+  if (!r || !POLICY) return null;
+  const amt = Number(r.amount), msgs = [];
+  if (amt > POLICY.per_payment_limit) msgs.push(`This is ${amt}, your limit per payment is ${POLICY.per_payment_limit}.`);
+  const left = Math.max(0, POLICY.daily_limit - POLICY.spentToday);
+  if (amt > left) msgs.push(`Only ${left.toFixed(2)} of today's ${POLICY.daily_limit} is left.`);
+  return msgs.length ? `${msgs.join(" ")} Approve anyway?` : null;
+}
+
+function overReasons(r) {
+  const out = (r.reasons || []).filter((x) => LIMIT_RE.test(x));
+  if (!out.length && POLICY && Number(r.amount) > POLICY.per_payment_limit) {
+    out.push(`amount ${r.amount} is above your per-payment limit ${POLICY.per_payment_limit}`);
+  }
+  return out;
+}
+
+function renderOverNote() {
+  const over = Object.values(PROPOSALS).filter((r) => r.status === "paid"
+    && String(r.updated_at).startsWith(today()) && overReasons(r).length);
+  const el = document.getElementById("overNote");
+  if (!over.length) { el.innerHTML = ""; return; }
+  el.innerHTML = `<button class="note" onclick="showOverList()">${over.length} payment${over.length > 1 ? "s" : ""} today went over your limits</button>`;
+  el.dataset.ids = over.map((r) => r.id).join(",");
+}
+
+function showOverList() {
+  const ids = (document.getElementById("overNote").dataset.ids || "").split(",");
+  const items = ids.map((id) => PROPOSALS[id]).filter(Boolean).map((r) =>
+    `<li><b>${esc(r.invoice_id)}</b>: ${esc(r.amount)}. ${esc(overReasons(r).join("; "))}</li>`).join("");
+  openModal({ title: "Paid over your limits today", body: `You approved these yourself, above the agent's limits.<ul>${items}</ul>`, ok: "Close" });
+}
+
+function openModal({ title, body, ok = "OK", cancel = null }) {
+  const m = document.getElementById("modal");
+  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("modalBody").innerHTML = body;
+  const okBtn = document.getElementById("modalOk"), cancelBtn = document.getElementById("modalCancel");
+  okBtn.textContent = ok;
+  cancelBtn.style.display = cancel ? "" : "none";
+  if (cancel) cancelBtn.textContent = cancel;
+  m.classList.add("show");
+  return new Promise((resolve) => {
+    const done = (v) => { m.classList.remove("show"); okBtn.onclick = cancelBtn.onclick = m.onclick = null; resolve(v); };
+    okBtn.onclick = () => done(true);
+    cancelBtn.onclick = () => done(false);
+    m.onclick = (e) => { if (e.target === m) done(false); };
+  });
+}
+
+// ---- Agent activity ----
+const LABEL = { run:"Agent", invoice:"Invoice", thinking:"Thinking", thought:"Thinking", tool:"Action", result:"Found", verdict:"Verdict", outcome:"Outcome", skip:"Skipped", error:"Problem" };
+let lastLogId = 0, lastGroup = null, lastRun = null, drawerTimer = null;
+
+function toggleDrawer() {
+  const open = document.body.classList.toggle("drawer-open");
+  clearInterval(drawerTimer);
+  if (open) { pollLogs(); drawerTimer = setInterval(pollLogs, 2500); }
+}
+
+async function pollLogs() {
+  try {
+    const rows = await api("logs", { after: String(lastLogId) });
+    if (!rows.length) return;
+    const feed = document.getElementById("feed");
+    const stick = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 40;
+    for (const e of rows) {
+      lastLogId = Math.max(lastLogId, e.id);
+      if (e.run_id !== lastRun) {
+        lastRun = e.run_id; lastGroup = null;
+        feed.insertAdjacentHTML("beforeend", `<div class="run-div">— run ${esc(e.run_id)} · ${esc(e.created_at)} UTC —</div>`);
+      }
+      if (e.invoice_id && e.invoice_id !== lastGroup) {
+        lastGroup = e.invoice_id;
+        feed.insertAdjacentHTML("beforeend", `<div class="grp">${esc(e.invoice_id)}</div>`);
+      }
+      const more = e.data ? `<details><summary>details</summary><pre>${esc(JSON.stringify(e.data, null, 2))}</pre></details>` : "";
+      feed.insertAdjacentHTML("beforeend", `<div class="ev ${esc(e.kind)}"><div><div class="lbl">${esc(LABEL[e.kind] || e.kind)}</div><div class="m">${esc(e.message)}</div><div class="t">${esc(e.created_at.slice(11))}</div>${more}</div></div>`);
+    }
+    if (stick) feed.scrollTop = feed.scrollHeight;
+  } catch (e) { /* keep quiet; the next poll will retry */ }
+}
+
+async function clearLogs() {
+  try {
+    await api("clearLogs");
+    document.getElementById("feed").innerHTML = "";
+    lastGroup = null; lastRun = null; lastLogId = 0;
+  } catch (e) { toast(e.message); }
+}
+
+async function addDeny() {
+  try {
+    await api("addDeny", {}, {
+      address: document.getElementById("denyAddr").value.trim(),
+      reason: document.getElementById("denyReason").value.trim(),
+    });
+    document.getElementById("denyAddr").value = ""; document.getElementById("denyReason").value = "";
+    toast("Address blocked"); loadGateway();
+  } catch (e) { toast(e.message); }
+}
+
+async function removeDeny(address) {
+  try { await api("removeDeny", { address }); toast("Address unblocked"); loadGateway(); }
+  catch (e) { toast(e.message); }
 }
 
 async function loadAll() {

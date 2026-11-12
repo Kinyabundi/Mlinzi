@@ -34,6 +34,16 @@ db.exec(`
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_proposals_invoice ON proposals(invoice_id);
+
+  CREATE TABLE IF NOT EXISTS agent_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    invoice_id TEXT,
+    kind TEXT NOT NULL,
+    message TEXT NOT NULL,
+    data TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 export interface PolicyRow { per_payment_limit: number; daily_limit: number; updated_at: string }
@@ -80,3 +90,17 @@ export const listProposals = (status?: ProposalStatus) =>
   (status
     ? db.prepare("SELECT * FROM proposals WHERE status = ? ORDER BY id DESC").all(status)
     : db.prepare("SELECT * FROM proposals ORDER BY id DESC LIMIT 200").all()) as ProposalRow[];
+
+export interface AgentLogRow {
+  id: number; run_id: string; invoice_id: string | null; kind: string; message: string; data: string | null; created_at: string;
+}
+
+export const insertAgentLog = (e: { runId: string; invoiceId?: string; kind: string; message: string; data?: unknown }) =>
+  db.prepare("INSERT INTO agent_logs (run_id, invoice_id, kind, message, data) VALUES (?, ?, ?, ?, ?)")
+    .run(e.runId, e.invoiceId ?? null, e.kind, e.message, e.data === undefined ? null : JSON.stringify(e.data));
+
+// Oldest-first after a given id, so the dashboard can poll for just what is new.
+export const listAgentLogs = (afterId = 0, limit = 300) =>
+  db.prepare("SELECT * FROM agent_logs WHERE id > ? ORDER BY id DESC LIMIT ?").all(afterId, limit).reverse() as AgentLogRow[];
+
+export const clearAgentLogs = () => db.prepare("DELETE FROM agent_logs").run();

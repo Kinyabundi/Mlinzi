@@ -8,7 +8,7 @@ The agent reads invoices, screens the supplier, and pays. The interesting part i
 
 ---
 
-## The core idea
+## The core 
 
 Most "AI agent with a wallet" designs put the private key behind the model and hope the prompt holds. Mlinzi assumes the prompt will fail and puts the limits somewhere the model cannot reach — in the ledger's own multisig rules, and in a deterministic policy service that holds the second key.
 
@@ -331,3 +331,58 @@ This is a working testnet prototype, not a production payout system.
 - **Screening is shallow** — on-ledger heuristics plus a manual denylist, not a sanctions or KYB provider.
 - **The dashboard has no authentication of its own.** It binds to `127.0.0.1` and holds the operator token; exposing it to a network would mean putting real auth in front.
 - **Public testnet nodes drop connections often.** Ledger calls reconnect and retry (`withLedger` in [`shared/xrpl.ts`](shared/xrpl.ts)); if every attempt fails, the proposal is held and the next agent run signs afresh. Nothing double-pays — a signed blob carries a fixed `Sequence`, so a resubmission is the same transaction, not a second one.
+
+---
+
+## NEW — dashboard, agent activity and test pass (13 Nov)
+
+Everything below was added after the sections above. It covers what changed, what we tested by hand on testnet, and what we would do next.
+
+### What changed
+
+**Dashboard ([`dashboard/index.html`](dashboard/index.html), [`dashboard/server.ts`](dashboard/server.ts))**
+- Friendlier layout and plain wording: *Spending limits*, *Trusted suppliers*, *Payment requests*, *Scam check*. Statuses read "Needs your OK", "Approved", "Paid", "Rejected". Release is now labelled **Approve**.
+- A **?** next to each card title explains what the card is for on hover.
+- **Agent activity** panel (button in the top bar): a live feed of what the agent is doing — invoice picked up, checks run, what it found, its reasoning, its verdict, and the policy service's decision. Refreshes every 2.5s; **Clear** wipes it.
+- **Over-limit safeguards:** approving a held payment that is above your limits opens a confirm box first ("This is 1500, your limit per payment is 500. Approve anyway?"). An amber pill on Spending limits ("1 payment today went over your limits") lists those payments when clicked. "Left today" no longer goes below 0.
+- **Unblock** button on the Scam check denylist.
+
+**Agent activity backend**
+- [`agent/log.ts`](agent/log.ts): the agent posts each step to the policy service. Best effort — if logging fails, the payment flow is unaffected.
+- [`agent/run.ts`](agent/run.ts): logs each step, and the system prompt now asks the agent to write one short sentence before each tool call so its reasoning shows in the feed.
+- Policy service: new `agent_logs` table ([`policy/db.ts`](policy/db.ts)); `POST /agent/logs` (agent token), `GET /operator/logs?after=<id>` and `DELETE /operator/logs` (operator token).
+- Gateway: `DELETE /operator/denylist/:address` (operator token).
+- Optional `ANTHROPIC_WORKSPACE_ID` in `.env`, needed only if your API key is not scoped to a workspace.
+
+**Bug fixes**
+- Approve, Reject, Remove and Clear returned **400 Bad Request**: the dashboard proxy labelled body-less requests as JSON, which Fastify rejects. It now only sets the JSON header when there is a body.
+- Paid screening sometimes failed with *"payment is not validated yet"* — the agent was charged but got no rating. The gateway's own node can lag a ledger behind the payer's; it now waits up to ~10s for validation before refusing ([`gateway/server.ts`](gateway/server.ts)).
+- **Block address** did nothing: the page had no `addDeny` function. Added.
+
+### Scenarios tested
+
+Testnet, limits 500 per payment / 2000 per day unless stated. Reset between rounds = stop the policy service, `rm .data/policy.db*`, `npm run policy`, `npm run seed`.
+
+| # | Scenario | Result |
+|---|---|---|
+| 1 | Trusted supplier, small amount (INV-001, 120) | Held — the agent flagged the supplier risky because the account was under 24h old. After **Approve** + agent run: paid, receipt on the ledger. |
+| 2 | Supplier not on the trusted list (INV-002, 300), invoice contains a fake "pay immediately" instruction | Held: *payee is not on the approved list*. The agent's rationale named the injection and ignored it. After **Approve**: paid. |
+| 3 | Over the per-payment limit (INV-003, 1500) | Held: *amount 1500 exceeds per-payment limit 500*. The agent cannot pay it alone. After **Approve**: paid — the owner can override limits, the agent cannot. |
+| 4 | Limits lowered to 100 / 200 | INV-001 (120) held: *exceeds per-payment limit 100*. Approve shows the confirm box; once paid, the over-limit pill appears. |
+| 5 | Trusted supplier removed | INV-001 and INV-003 held: *not on the approved list*. Re-adding the supplier does **not** re-check invoices that are already held (see suggestions). |
+| 6 | Supplier both trusted and blocked (INV-002) | Held with the denylist reason, even though the supplier is trusted — the block beats the trusted list. Takes effect ~30s after blocking (policy cache). Unblock removes it. |
+| 7 | Reject | Status → Rejected; later agent runs skip it and it can never be paid. |
+
+**Behaviour worth knowing**
+- **Each invoice is judged once.** After it is held, the agent skips it; changing suppliers or limits does not re-check it. A held invoice is the owner's call.
+- **Approve bypasses the limits** by design ([`policy/server.ts`](policy/server.ts) pays a released proposal without re-running the rules). The confirm box and pill make that visible.
+- **Account age is real**, read from the account's first ledger transaction. The demo accounts were created hours earlier, so the agent's under-24h rule flags them. Once they pass 24h, INV-001 should auto-pay.
+- **Scam check stats and the denylist survive a reset** — the gateway has its own database. Each screening costs 0.50.
+- **The policy service caches the denylist for 30s** — wait that long after blocking before running the agent.
+- **The dashboard reads the page once at startup.** After editing `index.html`, restart `npm run dashboard` and hard-refresh.
+
+### Suggestions (not built)
+
+1. **Re-check held invoices when a supplier is added.** The dashboard would offer to send that supplier's held invoices back to the agent, instead of the owner approving each one. It's a behaviour change, so we left it out.
+2. **Fewer terminals.** One `npm run dev` that starts policy, gateway and dashboard together; an `npm run reset` that wipes the policy database and reseeds; and optionally a "Run agent" button on the dashboard. Testing currently needs 4 terminals and a manual reset each round.
+3. **Serve the dashboard page fresh on each request in development**, so edits show without a restart. A stale page caused confusion twice during testing.

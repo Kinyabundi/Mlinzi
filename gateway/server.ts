@@ -71,14 +71,22 @@ async function verifyPayment(p: PaymentPayload, address: string): Promise<string
   if (Date.now() - Date.parse(challenge.created_at + "Z") > CHALLENGE_TTL_MS) problems.push("challenge expired");
   if (store.isSpent(p.txHash)) problems.push("payment already redeemed");
 
+  // The payer waited for validation on its own node; ours can lag a ledger or two
+  // behind, so give it up to ~10s to catch up before refusing.
   let tx: any;
-  try {
-    const res = await client.request({ command: "tx", transaction: p.txHash });
-    if (!res.result.validated) problems.push("payment is not validated yet");
-    tx = res.result.tx_json ?? res.result;
-  } catch {
-    return [...problems, "payment not found on the ledger"];
+  let validated = false;
+  for (let i = 0; i < 10; i++) {
+    try {
+      const res = await client.request({ command: "tx", transaction: p.txHash });
+      tx = res.result.tx_json ?? res.result;
+      (tx as any).meta ??= (res.result as any).meta;
+      validated = !!res.result.validated;
+      if (validated) break;
+    } catch { /* not seen yet */ }
+    await new Promise((r) => setTimeout(r, 1000));
   }
+  if (!tx) return [...problems, "payment not found on the ledger"];
+  if (!validated) problems.push("payment is not validated yet");
 
   if (tx.TransactionType !== "Payment") problems.push("not a Payment");
   if (tx.Destination !== accounts.gateway.address) problems.push("payment was not sent to the gateway");
@@ -143,6 +151,11 @@ app.post<{ Body: { address: string; reason: string } }>("/operator/denylist", op
     return reply.code(400).send({ error: "valid XRPL address and reason required" });
   }
   store.addDeny(address, reason);
+  return { ok: true };
+});
+
+app.delete<{ Params: { address: string } }>("/operator/denylist/:address", operatorOnly, async (req) => {
+  store.removeDeny(req.params.address);
   return { ok: true };
 });
 

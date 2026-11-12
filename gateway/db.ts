@@ -57,3 +57,6 @@ export const listDeny = () =>
 
 export const revenue = () =>
   (db.prepare("SELECT COALESCE(SUM(amount), 0) AS s FROM receipts").get() as { s: number }).s;
+
+export const removeDeny = (address: string) =>
+  db.prepare("DELETE FROM denylist WHERE address = ?").run(address);

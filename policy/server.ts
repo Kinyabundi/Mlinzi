@@ -92,6 +92,14 @@ app.get<{ Params: { invoiceId: string } }>("/agent/invoices/:invoiceId", agentOn
   return { invoiceId: req.params.invoiceId, status: latest?.status ?? "new" };
 });
 
+app.post<{ Body: { runId: string; invoiceId?: string; kind: string; message: string; data?: unknown } }>(
+  "/agent/logs", agentOnly, async (req, reply) => {
+    const { runId, kind, message } = req.body ?? ({} as any);
+    if (!runId || !kind || !message) return reply.code(400).send({ error: "runId, kind and message required" });
+    store.insertAgentLog({ ...req.body, message: String(message).slice(0, 1000) });
+    return { ok: true };
+  });
+
 // ---- Operator API (the agent's token cannot reach these) ----
 
 app.get("/operator/policy", operatorOnly, async () => ({ ...store.getPolicy(), spentToday: store.spentToday() }));
@@ -104,6 +112,11 @@ app.put<{ Body: { perPaymentLimit: number; dailyLimit: number } }>("/operator/po
   store.setPolicy(perPaymentLimit, dailyLimit);
   return store.getPolicy();
 });
+
+app.get<{ Querystring: { after?: string } }>("/operator/logs", operatorOnly, async (req) =>
+  store.listAgentLogs(Number(req.query.after) || 0).map((r) => ({ ...r, data: r.data ? JSON.parse(r.data) : null })));
+
+app.delete("/operator/logs", operatorOnly, async () => { store.clearAgentLogs(); return { ok: true }; });
 
 app.get("/operator/payees", operatorOnly, async () => store.listPayees());
 

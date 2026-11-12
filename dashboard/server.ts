@@ -29,8 +29,11 @@ const ROUTES: Record<string, { base: string; path: (p: Record<string, string>) =
   "proposals":     { base: POLICY_URL,  method: "GET",    path: (p) => `/operator/proposals${p.status ? `?status=${encodeURIComponent(p.status)}` : ""}` },
   "release":       { base: POLICY_URL,  method: "POST",   path: (p) => `/operator/proposals/${encodeURIComponent(p.id)}/release` },
   "reject":        { base: POLICY_URL,  method: "POST",   path: (p) => `/operator/proposals/${encodeURIComponent(p.id)}/reject` },
+  "logs":          { base: POLICY_URL,  method: "GET",    path: (p) => `/operator/logs?after=${encodeURIComponent(p.after ?? "0")}` },
+  "clearLogs":     { base: POLICY_URL,  method: "DELETE", path: () => "/operator/logs" },
   "denylist":      { base: GATEWAY_URL, method: "GET",    path: () => "/operator/denylist" },
   "addDeny":       { base: GATEWAY_URL, method: "POST",   path: () => "/operator/denylist" },
+  "removeDeny":    { base: GATEWAY_URL, method: "DELETE", path: (p) => `/operator/denylist/${encodeURIComponent(p.address)}` },
   "revenue":       { base: GATEWAY_URL, method: "GET",    path: () => "/operator/revenue" },
 };
 
@@ -41,7 +44,11 @@ app.post<{ Body: { action: string; params?: Record<string, string>; body?: unkno
   try {
     const res = await fetch(`${route.base}${route.path(req.body.params ?? {})}`, {
       method: route.method,
-      headers: { "content-type": "application/json", authorization: `Bearer ${OPERATOR_TOKEN}` },
+      // Only label it JSON when there is a body: Fastify rejects an empty JSON body with 400.
+      headers: {
+        authorization: `Bearer ${OPERATOR_TOKEN}`,
+        ...(req.body.body ? { "content-type": "application/json" } : {}),
+      },
       body: req.body.body ? JSON.stringify(req.body.body) : undefined,
     });
     const text = await res.text();
