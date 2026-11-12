@@ -8,6 +8,8 @@
     "setup:testnet": "tsx scripts/setup-testnet.ts",
     "test:multisig": "tsx scripts/multisig-payment.ts",
     "policy": "tsx --env-file=.env policy/server.ts",
+    "gateway": "tsx --env-file=.env gateway/server.ts",
+    "dashboard": "tsx --env-file=.env dashboard/server.ts",
     "seed": "tsx --env-file=.env scripts/seed-demo.ts",
     "agent": "tsx --env-file=.env agent/run.ts",
     "typecheck": "tsc --noEmit"

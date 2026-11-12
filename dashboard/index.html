@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mlinzi — Operator</title>
+<style>
+  :root {
+    --bg: #faf9f7; --panel: #ffffff; --line: #e5e1db; --ink: #1c1a17; --muted: #6b655c;
+    --accent: #1f6f5c; --warn: #9a6b1f; --bad: #9a3324; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#171614; --panel:#201e1b; --line:#332f2a; --ink:#f0ece6; --muted:#9c958a;
+            --accent:#5fbfa4; --warn:#d6a24a; --bad:#e0705c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:20px 24px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  h1 { font-size:17px; margin:0; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:13px; }
+  main { max-width:1040px; margin:0 auto; padding:24px; display:grid; gap:20px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 14px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:12px; text-transform:uppercase;
+       letter-spacing:.04em; padding:0 10px 8px 0; }
+  td { padding:9px 10px 9px 0; border-top:1px solid var(--line); vertical-align:top; }
+  .scroll { overflow-x:auto; }
+  code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600;
+          text-transform:uppercase; letter-spacing:.04em; border:1px solid currentColor; }
+  .paid{color:var(--accent)} .held{color:var(--warn)} .rejected{color:var(--bad)} .released{color:var(--muted)}
+  button { font:inherit; font-size:13px; padding:5px 12px; border-radius:7px; border:1px solid var(--line);
+           background:transparent; color:var(--ink); cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover { opacity:.9; color:#fff; }
+  input { font:inherit; font-size:13px; padding:6px 9px; border-radius:7px;
+          border:1px solid var(--line); background:var(--bg); color:var(--ink); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .stat { display:flex; gap:28px; flex-wrap:wrap; }
+  .stat div span { display:block; }
+  .stat .k { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .stat .v { font-size:20px; font-weight:600; margin-top:2px; }
+  a { color:var(--accent); }
+  .reasons { color:var(--muted); font-size:12.5px; margin-top:3px; }
+  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink);
+           color:var(--bg); padding:9px 16px; border-radius:8px; font-size:13px; opacity:0;
+           transition:opacity .2s; pointer-events:none; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mlinzi</h1>
+  <span class="sub">Operator console · XRPL Testnet</span>
+  <span class="sub" style="margin-left:auto"><button onclick="loadAll()">Refresh</button></span>
+</header>
+
+<main>
+  <section>
+    <h2>Limits</h2>
+    <div class="stat" id="policyStats"></div>
+    <div class="row" style="margin-top:14px">
+      <input id="perPayment" type="number" step="1" placeholder="per payment" style="width:130px">
+      <input id="daily" type="number" step="1" placeholder="per day" style="width:130px">
+      <button class="primary" onclick="savePolicy()">Save limits</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Approved payees</h2>
+    <div class="scroll"><table id="payees"></table></div>
+    <div class="row" style="margin-top:14px">
+      <input id="payeeAddr" placeholder="r..." style="width:300px" class="mono">
+      <input id="payeeName" placeholder="supplier name" style="width:220px">
+      <button class="primary" onclick="addPayee()">Approve</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Proposals</h2>
+    <div class="scroll"><table id="proposals"></table></div>
+  </section>
+
+  <section>
+    <h2>Screening gateway</h2>
+    <div class="stat" id="revenue"></div>
+    <div class="scroll" style="margin-top:14px"><table id="denylist"></table></div>
+    <div class="row" style="margin-top:14px">
+      <input id="denyAddr" placeholder="r..." style="width:300px" class="mono">
+      <input id="denyReason" placeholder="reason" style="width:220px">
+      <button onclick="addDeny()">Add to denylist</button>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const EXPLORER = "https://testnet.xrpl.org";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const short = (a) => a ? a.slice(0, 10) + "…" + a.slice(-4) : "";
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+async function api(action, params, body) {
+  const res = await fetch("/api", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action, params, body }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `request failed (${res.status})`);
+  return data;
+}
+
+async function loadPolicy() {
+  const p = await api("policy");
+  document.getElementById("policyStats").innerHTML = `
+    <div><span class="k">Per payment</span><span class="v">${p.per_payment_limit}</span></div>
+    <div><span class="k">Per day</span><span class="v">${p.daily_limit}</span></div>
+    <div><span class="k">Spent today</span><span class="v">${p.spentToday}</span></div>
+    <div><span class="k">Remaining today</span><span class="v">${(p.daily_limit - p.spentToday).toFixed(2)}</span></div>`;
+  document.getElementById("perPayment").value = p.per_payment_limit;
+  document.getElementById("daily").value = p.daily_limit;
+}
+
+async function savePolicy() {
+  try {
+    await api("setPolicy", {}, {
+      perPaymentLimit: Number(document.getElementById("perPayment").value),
+      dailyLimit: Number(document.getElementById("daily").value),
+    });
+    toast("Limits updated"); loadPolicy();
+  } catch (e) { toast(e.message); }
+}
+
+async function loadPayees() {
+  const rows = await api("payees");
+  document.getElementById("payees").innerHTML =
+    `<tr><th>Address</th><th>Name</th><th>Approved</th><th></th></tr>` +
+    (rows.length ? rows.map((r) => `
+      <tr><td class="mono" title="${esc(r.address)}">${esc(short(r.address))}</td>
+      <td>${esc(r.name)}</td><td class="sub">${esc(r.approved_at)}</td>
+      <td><button onclick="removePayee('${esc(r.address)}')">Remove</button></td></tr>`).join("")
+      : `<tr><td colspan="4" class="reasons">No approved payees yet.</td></tr>`);
+}
+
+async function addPayee() {
+  try {
+    await api("addPayee", {}, {
+      address: document.getElementById("payeeAddr").value.trim(),
+      name: document.getElementById("payeeName").value.trim(),
+    });
+    document.getElementById("payeeAddr").value = ""; document.getElementById("payeeName").value = "";
+    toast("Payee approved"); loadPayees();
+  } catch (e) { toast(e.message); }
+}
+
+async function removePayee(address) {
+  try { await api("removePayee", { address }); toast("Payee removed"); loadPayees(); }
+  catch (e) { toast(e.message); }
+}
+
+async function loadProposals() {
+  const rows = await api("proposals");
+  document.getElementById("proposals").innerHTML =
+    `<tr><th>Invoice</th><th>Payee</th><th>Amount</th><th>Status</th><th>Detail</th><th></th></tr>` +
+    (rows.length ? rows.map((r) => {
+      const actions = r.status === "held"
+        ? `<button class="primary" onclick="act('release',${r.id})">Release</button>
+           <button onclick="act('reject',${r.id})">Reject</button>` : "";
+      const detail = r.link
+        ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">view on ledger</a>`
+        : `<span class="reasons">${esc((r.reasons || []).join("; ")) || "—"}</span>`;
+      const risk = r.report?.evidence?.screening?.result?.risk;
+      return `<tr>
+        <td>${esc(r.invoice_id)}</td>
+        <td class="mono" title="${esc(r.payee)}">${esc(short(r.payee))}</td>
+        <td>${esc(r.amount)}</td>
+        <td><span class="pill ${esc(r.status)}">${esc(r.status)}</span>${
+          risk ? `<div class="reasons">screened: ${esc(risk)}</div>` : ""}</td>
+        <td>${detail}</td><td>${actions}</td></tr>`;
+    }).join("") : `<tr><td colspan="6" class="reasons">No proposals yet.</td></tr>`);
+}
+
+async function act(action, id) {
+  try { await api(action, { id: String(id) }); toast(`Proposal ${id} ${action}d`); loadProposals(); loadPolicy(); }
+  catch (e) { toast(e.message); }
+}
+
+async function loadGateway() {
+  try {
+    const r = await api("revenue");
+    document.getElementById("revenue").innerHTML = `
+      <div><span class="k">Screenings sold</span><span class="v">${Math.round(r.screeningsSold)}</span></div>
+      <div><span class="k">Revenue</span><span class="v">${r.revenue.toFixed(2)} USD</span></div>
+      <div><span class="k">Gateway</span><span class="v mono" style="font-size:13px">${esc(short(r.gateway))}</span></div>`;
+    const rows = await api("denylist");
+    document.getElementById("denylist").innerHTML =
+      `<tr><th>Denylisted address</th><th>Reason</th><th>Added</th></tr>` +
+      (rows.length ? rows.map((d) => `<tr><td class="mono" title="${esc(d.address)}">${esc(short(d.address))}</td>
+        <td>${esc(d.reason)}</td><td class="sub">${esc(d.added_at)}</td></tr>`).join("")
+        : `<tr><td colspan="3" class="reasons">Denylist is empty.</td></tr>`);
+  } catch (e) {
+    document.getElementById("revenue").innerHTML =
+      `<div class="reasons">Gateway unreachable — start it with <code>npm run gateway</code>.</div>`;
+  }
+}
+
+async function loadAll() {
+  try { await Promise.all([loadPolicy(), loadPayees(), loadProposals(), loadGateway()]); }
+  catch (e) { toast(e.message); }
+}
+
+loadAll();
+setInterval(loadAll, 15000);
+</script>
+</body>
+</html>

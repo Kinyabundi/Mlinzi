@@ -3,6 +3,7 @@ import type { Client, Payment } from "xrpl";
 import { wallet, reportMemo, CURRENCY, type Accounts } from "../shared/xrpl.js";
 import type { DecisionReport, Invoice, Proposal, ProposalResponse } from "../shared/types.js";
 import { payeeFacts } from "./ledger.js";
+import { screenPayee } from "./screening.js";
 
 const POLICY_URL = process.env.POLICY_URL ?? "http://127.0.0.1:4000";
 const AGENT_TOKEN = process.env.AGENT_TOKEN!;
@@ -24,6 +25,18 @@ export const toolDefs: Anthropic.Messages.Tool[] = [
     description:
       "Free checks on a payee address: whether the business owner has approved it, and on-ledger facts " +
       "(exists, account age in hours, XRP balance, whether it can receive the stablecoin).",
+    input_schema: {
+      type: "object",
+      properties: { address: { type: "string", description: "XRPL address of the payee" } },
+      required: ["address"],
+    },
+  },
+  {
+    name: "screen_payee",
+    description:
+      "Paid risk screening for a payee, bought from the screening gateway over x402. Costs a small fee " +
+      "from the business's screening budget, so call it at most once per invoice, and only when the free " +
+      "checks from check_payee leave real doubt. Returns a risk rating and the signals behind it.",
     input_schema: {
       type: "object",
       properties: { address: { type: "string", description: "XRPL address of the payee" } },
@@ -64,6 +77,14 @@ export async function runTool(name: string, input: any, ctx: ToolContext): Promi
     const facts = await payeeFacts(client, invoice.payee, accounts.issuer.address);
     ctx.evidence.checkPayee = { ...allow, ...facts };
     return ctx.evidence.checkPayee;
+  }
+
+  if (name === "screen_payee") {
+    if (input.address !== invoice.payee) return { error: "can only screen the payee named on this invoice" };
+    if (ctx.evidence.screening) return { error: "this payee has already been screened for this invoice" };
+    const outcome = await screenPayee(client, accounts, invoice.payee);
+    ctx.evidence.screening = outcome;
+    return outcome;
   }
 
   if (name === "propose_payment") {

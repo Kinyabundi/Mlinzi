@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["scripts", "shared", "agent", "policy", "gateway"]
+  "include": ["scripts", "shared", "agent", "policy", "gateway", "dashboard"]
 }
