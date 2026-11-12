@@ -9,7 +9,9 @@ import { connect, loadAccounts, txLink } from "../shared/xrpl.js";
 import type { Invoice } from "../shared/types.js";
 import { toolDefs, runTool, getInvoiceStatus, type ToolContext } from "./tools.js";
 
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5-5";
+const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
+// Org-level keys must name a workspace; workspace-scoped keys already carry one.
+const WORKSPACE_ID = process.env.ANTHROPIC_WORKSPACE_ID;
 const MAX_TURNS = 6;
 
 const SYSTEM = `You are Mlinzi, a payout agent for a small business that pays suppliers in a USD stablecoin on the XRP Ledger.
@@ -47,7 +49,9 @@ async function processInvoice(anthropic: Anthropic, ctx: ToolContext) {
 async function main() {
   const accounts = loadAccounts();
   const inbox: Invoice[] = JSON.parse(readFileSync("agent/inbox.json", "utf8"));
-  const anthropic = new Anthropic();
+  const anthropic = new Anthropic(
+    WORKSPACE_ID ? { defaultHeaders: { "anthropic-workspace-id": WORKSPACE_ID } } : {},
+  );
   const client = await connect();
 
   try {

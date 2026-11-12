@@ -19,12 +19,5 @@
     "payee": "rMhQnsBZjFZp5cPdT6YKW5c6BugYLTh53f",
     "amount": "1500",
     "description": "Bulk order, 3000 units"
-  },
-  {
-    "invoiceId": "INV-004",
-    "supplierName": "Guangzhou Display Co",
-    "payee": "rBkSoseSKEriYzYdSDv8ttS8RhNWSpE7Hd",
-    "amount": "200",
-    "description": "Replacement LCD panels"
   }
 ]
