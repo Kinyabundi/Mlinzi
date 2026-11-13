@@ -75,9 +75,13 @@ Signer list: **quorum 2** — agent (1) + policy (1) = 2 ✅, or operator (2) al
 
 A held payment is never co-signed later from a stale blob. Signed XRPL transactions expire (`LastLedgerSequence`), so "release" just marks the invoice approved; the agent signs a **fresh** payment on its next run. The operator key never leaves the operator.
 
+Because that payment is signed *after* the operator decided, the policy service pins it to what was actually released: a proposal whose payee or amount differs from the released row is refused. Releasing 800 does not authorize 1200.
+
 ### Audit trail
 
 Every payment carries a memo holding the SHA-256 of the full decision report — verdict, rationale, and all evidence the agent saw. The report is stored in the policy database; the hash is on the public ledger. Anyone can verify after the fact that the stored reasoning is the reasoning that authorized that exact payment.
+
+Released invoices are re-signed with a **fresh** report, so the policy service replaces the stored copy before paying. Skipping that leaves the database holding a report whose hash no longer matches the ledger — which silently breaks the only thing making the audit trail verifiable.
 
 ---
 
@@ -318,6 +322,15 @@ A deterministic test driver always called `screen_payee`, so the gateway denylis
 The denylist was only enforced if the agent chose to pay for screening, which makes it exactly the kind of limit the agent *can* override — the thing this project exists to prevent. The fix moves the check into the policy service ([`policy/intel.ts`](policy/intel.ts)), where it runs on every proposal regardless of what the agent did, and fails closed.
 
 Re-tested after the fix, same scenario: agent again rated the payee `clean`; policy service held it on `payee is denylisted by the screening gateway`. With the gateway stopped, a perfectly clean invoice is also held (`screening gateway unreachable`) rather than paid.
+
+### Two more found by auditing a full demo run
+
+Verifying every on-ledger memo against its stored report turned up a mismatch on the one invoice that went through **release**:
+
+1. **Broken audit chain on released invoices.** The agent re-signs with a fresh report, but the policy service paid without replacing the stored one — so the database held a report whose hash did not match the ledger. The audit trail looked intact and wasn't.
+2. **Release was not pinned to an amount.** The released path skipped the limit rules by design (the operator overrode them) but never checked the re-proposed payment against what was released. An invoice released at 800 could come back as 1200 and be paid.
+
+Both fixed in [`policy/server.ts`](policy/server.ts). Verified: tampering an invoice from 800 to 1200 after release is now refused — `operator released 800 to r…, not 1200 to r…` — and after the fix every paid invoice's stored report hashes to its on-ledger memo.
 
 ---
 

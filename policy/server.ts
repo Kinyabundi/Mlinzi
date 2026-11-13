@@ -63,8 +63,20 @@ app.post<{ Body: Proposal }>("/proposals", agentOnly, async (req, reply) => {
   const problems = verifyAgentBlob(p, accounts);
   if (problems.length) return reply.code(400).send({ status: "refused", reasons: problems });
 
-  // Operator already approved this invoice: co-sign the fresh blob.
-  if (latest?.status === "released") return pay(latest.id, p.txBlob);
+  // Operator already approved this invoice: co-sign the fresh blob. The release
+  // approved one payee and one amount, not whatever the agent sends next.
+  if (latest?.status === "released") {
+    if (p.payee !== latest.payee || amount !== latest.amount) {
+      return reply.code(409).send({
+        status: "refused",
+        reasons: [`operator released ${latest.amount} to ${latest.payee}, not ${amount} to ${p.payee}`],
+      });
+    }
+    // Keep the report that actually authorized this payment, so the on-ledger
+    // memo hash still matches the stored copy.
+    store.updateReport(latest.id, p.report);
+    return pay(latest.id, p.txBlob);
+  }
 
   const { approve, reasons } = evaluate(p.payee, amount, p.report.screening);
 

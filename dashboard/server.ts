@@ -42,14 +42,16 @@ app.post<{ Body: { action: string; params?: Record<string, string>; body?: unkno
   if (!route) return reply.code(400).send({ error: "unknown action" });
 
   try {
+    // Only declare a JSON body when there is one: release/reject take none, and
+    // an empty body with a JSON content-type is rejected upstream.
+    const hasBody = req.body.body !== undefined && req.body.body !== null;
     const res = await fetch(`${route.base}${route.path(req.body.params ?? {})}`, {
       method: route.method,
-      // Only label it JSON when there is a body: Fastify rejects an empty JSON body with 400.
       headers: {
         authorization: `Bearer ${OPERATOR_TOKEN}`,
-        ...(req.body.body ? { "content-type": "application/json" } : {}),
+        ...(hasBody ? { "content-type": "application/json" } : {}),
       },
-      body: req.body.body ? JSON.stringify(req.body.body) : undefined,
+      body: hasBody ? JSON.stringify(req.body.body) : undefined,
     });
     const text = await res.text();
     return reply.code(res.status).type("application/json")

@@ -83,6 +83,12 @@ export const updateStatus = (id: number, status: ProposalStatus, txHash?: string
   db.prepare("UPDATE proposals SET status = ?, tx_hash = COALESCE(?, tx_hash), updated_at = datetime('now') WHERE id = ?")
     .run(status, txHash ?? null, id);
 
+// A released invoice is re-signed with a fresh report, so the stored copy has to
+// be replaced — otherwise the on-ledger memo hash no longer matches what we keep.
+export const updateReport = (id: number, report: unknown) =>
+  db.prepare("UPDATE proposals SET report = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(JSON.stringify(report), id);
+
 export const getProposal = (id: number) =>
   db.prepare("SELECT * FROM proposals WHERE id = ?").get(id) as ProposalRow | undefined;
 
