@@ -8,7 +8,7 @@
  *   npm run dashboard
  */
 import Fastify from "fastify";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 const PORT = Number(process.env.DASHBOARD_PORT ?? 4100);
 const POLICY_URL = process.env.POLICY_URL ?? "http://127.0.0.1:4000";
@@ -37,7 +37,60 @@ const ROUTES: Record<string, { base: string; path: (p: Record<string, string>) =
   "revenue":       { base: GATEWAY_URL, method: "GET",    path: () => "/operator/revenue" },
 };
 
+// ---- Invoice inbox ----
+// The inbox is the agent's input file, not policy state, so the dashboard owns
+// it directly. Adding one here is the same as dropping an invoice on the desk:
+// it grants nothing. The agent still has to propose it and the policy service
+// still has to approve it.
+const INBOX = "agent/inbox.json";
+const ADDRESS_RE = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/;
+
+interface Invoice {
+  invoiceId: string; supplierName: string; payee: string; amount: string; description: string;
+}
+
+const readInbox = (): Invoice[] => {
+  if (!existsSync(INBOX)) return [];
+  try {
+    const parsed = JSON.parse(readFileSync(INBOX, "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+function addInvoice(raw: Partial<Invoice>): { error: string } | { ok: true; invoice: Invoice } {
+  const invoiceId = String(raw.invoiceId ?? "").trim();
+  const supplierName = String(raw.supplierName ?? "").trim();
+  const payee = String(raw.payee ?? "").trim();
+  const amount = String(raw.amount ?? "").trim();
+  const description = String(raw.description ?? "").trim();
+
+  if (!invoiceId) return { error: "invoice number is required" };
+  if (!supplierName) return { error: "supplier name is required" };
+  if (!ADDRESS_RE.test(payee)) return { error: "payee must be a valid XRPL address" };
+  if (!(Number(amount) > 0)) return { error: "amount must be greater than zero" };
+
+  const inbox = readInbox();
+  if (inbox.some((i) => i.invoiceId === invoiceId)) return { error: `${invoiceId} is already in the inbox` };
+
+  const invoice: Invoice = { invoiceId, supplierName, payee, amount, description };
+  writeFileSync(INBOX, JSON.stringify([...inbox, invoice], null, 2) + "\n");
+  return { ok: true, invoice };
+}
+
 app.post<{ Body: { action: string; params?: Record<string, string>; body?: unknown } }>("/api", async (req, reply) => {
+  if (req.body?.action === "invoices") return readInbox();
+  if (req.body?.action === "addInvoice") {
+    const result = addInvoice((req.body.body ?? {}) as Partial<Invoice>);
+    return "error" in result ? reply.code(400).send(result) : result;
+  }
+  if (req.body?.action === "removeInvoice") {
+    const id = req.body.params?.invoiceId;
+    writeFileSync(INBOX, JSON.stringify(readInbox().filter((i) => i.invoiceId !== id), null, 2) + "\n");
+    return { ok: true };
+  }
+
   const route = ROUTES[req.body?.action];
   if (!route) return reply.code(400).send({ error: "unknown action" });
 

@@ -13,7 +13,7 @@
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import { randomBytes } from "node:crypto";
 import { convertHexToString } from "xrpl";
-import { connect, loadAccounts, CURRENCY } from "../shared/xrpl.js";
+import { connect, loadAccounts, withLedger, CURRENCY } from "../shared/xrpl.js";
 import * as store from "./db.js";
 import { screenAddress } from "./screen.js";
 
@@ -72,17 +72,22 @@ async function verifyPayment(p: PaymentPayload, address: string): Promise<string
   if (store.isSpent(p.txHash)) problems.push("payment already redeemed");
 
   // The payer waited for validation on its own node; ours can lag a ledger or two
-  // behind, so give it up to ~10s to catch up before refusing.
+  // behind, so give it up to ~10s to catch up before refusing. withLedger
+  // reconnects a dropped socket — without it a dead connection looks exactly
+  // like "transaction does not exist", and a payer who really paid gets nothing.
   let tx: any;
   let validated = false;
   for (let i = 0; i < 10; i++) {
     try {
-      const res = await client.request({ command: "tx", transaction: p.txHash });
+      const res = await withLedger(client, () => client.request({ command: "tx", transaction: p.txHash }));
       tx = res.result.tx_json ?? res.result;
       (tx as any).meta ??= (res.result as any).meta;
       validated = !!res.result.validated;
       if (validated) break;
-    } catch { /* not seen yet */ }
+    } catch (err) {
+      // Only "not found yet" is worth waiting out; a live node saying no is final.
+      if ((err as any)?.data?.error !== "txnNotFound") throw err;
+    }
     await new Promise((r) => setTimeout(r, 1000));
   }
   if (!tx) return [...problems, "payment not found on the ledger"];
@@ -130,7 +135,7 @@ app.get<{ Querystring: { address?: string } }>("/screen", async (req, reply) => 
 
   const receipt = { settled: true, txHash: payment.txHash, amount: SCREENING_PRICE.toFixed(2), network: NETWORK };
   reply.header("x-payment-response", Buffer.from(JSON.stringify(receipt)).toString("base64"));
-  return screenAddress(client, address, accounts.issuer.address);
+  return withLedger(client, () => screenAddress(client, address, accounts.issuer.address));
 });
 
 // ---- Operator API: the gateway's own risk intelligence ----
